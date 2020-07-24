@@ -1,0 +1,153 @@
+---
+title: "NOAA Storm Data Analysis"
+author: "Danish Tamboli"
+date: "7/21/2020"
+output: html_document
+---
+### Synopsis
+
+#### The NOAA Dataset consists of readings from 1950-2011, with readings being taken more frequently in the later years, Analysis of the NOAA Storm Data is being carried out in hopes of finding the answer to the following questions:
+
+#### Across the United States, which types of events (as indicated in the [EVTYPE] variable) are most harmful with respect to population health?
+
+##### Calculated Taking the following variables into account:
+ * EVTYPE
+ * FATALITIES
+ * INJURIES
+ 
+        
+#### Across the United States, which types of events have the greatest economic consequences?
+
+##### Calculated Taking the following variables into account:
+ * EVTYPE
+ * PROPDMG
+ * CROPDMG
+
+## Data Processing
+#### Downloading the U.S. National Oceanic and Atmospheric Administration's (NOAA) Storm Dataset.
+```{r download}
+if(!file.exists("NOAA_Strom_Data.csv.bz2")){
+        download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2","NOAA_Strom_Data.csv.bz2")
+}
+```
+
+#### Reading and Storing the Dataset using read.csv function.
+```{r reading,cache=TRUE}
+NOAA_Storm_Data <- read.csv("NOAA_Strom_Data.csv.bz2")
+```
+
+#### Lets have a look at the first 6 lines of the Dataset and An Overview of the classes of the Collumns present in the dataset.
+```{r summary ,cache=TRUE}
+head(NOAA_Storm_Data)
+str(NOAA_Storm_Data)
+```
+
+#### Coverting the $BGN_DATE and $BGN_TIME from Character class to Date and POSIXlt respectively.
+```{r datetime,cache=TRUE}
+MOD_NOAA_Storm_Data <- NOAA_Storm_Data
+MOD_NOAA_Storm_Data$BGN_DATE <- as.Date(NOAA_Storm_Data$BGN_DATE, "%m/%d/%Y")
+MOD_NOAA_Storm_Data$BGN_TIME <- strptime(paste(MOD_NOAA_Storm_Data$BGN_DATE,MOD_NOAA_Storm_Data$BGN_TIME),"%Y-%m-%d %H%M")
+```
+
+#### We see that now $BGN_DATE and $BGN_TIME are in their correct formats.
+```{r datetimee structure}
+str(MOD_NOAA_Storm_Data$BGN_DATE)
+str(MOD_NOAA_Storm_Data$BGN_TIME)
+```
+
+## Results
+
+### Across the United States, which types of events (as indicated in the \color{red}{\verb|EVTYPE|}EVTYPE variable) are most harmful with respect to population health?
+
+#### Finding Total Number of Fatalities and Injuries with respect to Event Type.
+```{r total fatalities and injuries,cache=TRUE}
+# Checking if INJURIES AND FATALITIES CONTAIN ANY NA Values.
+table(is.na(MOD_NOAA_Storm_Data$INJURIES))
+table(is.na(MOD_NOAA_Storm_Data$FATALITIES))
+
+# Seeing how many different types of Events Exist
+length(table(MOD_NOAA_Storm_Data$EVTYPE))
+
+# Finding The Total number of Injuries and Fatalities with respect to each Event.
+total.injuries <- aggregate(INJURIES~EVTYPE,MOD_NOAA_Storm_Data,sum)
+total.fatalities <- aggregate(FATALITIES~EVTYPE,MOD_NOAA_Storm_Data,sum)
+
+# Merging Total Injuries and Fatalities into a single Dataframe and sorting it in Descending order, Number of Fatalities given higher importance than Injuries.
+total.injuries.fatalities <- merge(total.injuries,total.fatalities,by = "EVTYPE")
+total.injuries.fatalities <- total.injuries.fatalities[order(-total.injuries.fatalities$FATALITIES,-total.injuries.fatalities$INJURIES),]
+
+# Picking the Top 5 and changing the colnames to more convinient ones.
+total.injuries.fatalities.top5 <- total.injuries.fatalities[1:5,]
+colnames(total.injuries.fatalities.top5) <- c("Event.Type","Injuries","Fatalities")
+
+# Table of Total Injuries and Fatalities with respect to Event Type.
+knitr::kable(total.injuries.fatalities.top5)
+```
+
+```{r total casualties,cache=TRUE}
+# Calculating Cumulative Casualties (Fatalities+Injuries),in Descending order with respect to Different Events.
+total.harm <- aggregate(FATALITIES+INJURIES~EVTYPE,MOD_NOAA_Storm_Data,sum)
+total.harm <- total.harm[order(-total.harm$`FATALITIES + INJURIES`),]
+
+# Selecting the Top 10 Casualties prone areas.
+top5.total.harm <- total.harm[1:5,]
+colnames(top5.total.harm) <- c("Event.Type","Total.Casualty")
+
+# Table of Total Casualties varying with Different Events
+knitr::kable(top5.total.harm)
+```
+
+```{r Most Harmful Events Plot}
+#Loading the ggplot2 library for plotting
+library(ggplot2)
+
+# TOP 5 Most Casualty Causing / Most Harmful Event Types
+ggplot(top5.total.harm,aes(Event.Type,Total.Casualty,fill=Event.Type)) + geom_col() + labs(x= "Event Type",y= "Total Casualty",title= "TOP 5 Most Casualty Causing Event Types")
+```
+
+#### We see that the Top 5 Most Harmful events are as follow:  
+* TORNADO
+* EXCESSIVE HEAT
+* TSTM WIND
+* FLOOD
+* LIGHTNING
+
+## Across the United States, which types of events have the greatest economic consequences?
+
+#### Calculating the Property and Crop Damages,along with Total Damages on a Event Type basis.
+```{r Economical damages,cache=TRUE}
+# Calculating the Total property Damage of different Events.
+property.damage <- aggregate(PROPDMG~EVTYPE,MOD_NOAA_Storm_Data,sum)
+
+# Calculating the TOtal Crop Damange of different Events.
+crop.damage <- aggregate(CROPDMG~EVTYPE,MOD_NOAA_Storm_Data,sum)
+
+# Combining the Property and Crop Damage into a singe Dataframe.
+economical.damage <- merge(property.damage,crop.damage,by="EVTYPE")
+
+# Calculating total Economical Damage.
+economical.damage <- cbind(economical.damage,Total.Damage = property.damage[,2] + crop.damage[,2])
+
+colnames(economical.damage)<- c("Event.Type","Property.Damage","Crop.Damage","Total.Damage")
+
+# Sorting the Economical Damage in Descending Order.
+economical.damage <- economical.damage[order(-economical.damage$Total.Damage),]
+
+# Filtering out the top 5 monst Economical Damange causing Events.
+economical.damage.top.5 <- economical.damage[1:5,]
+
+#Table of Events and the Damages Incured by them
+knitr::kable(economical.damage.top.5)
+```
+
+```{r Economy Damaging Events Plot}
+ggplot(economical.damage.top.5,aes(Event.Type,Total.Damage/1000)) + geom_col(aes(fill=Event.Type)) + labs(x="Type of Event",y="Total Damage Done in 1000's/K USD($)",title = "Top 5 Economical Damage done by Events (Property Damage + Crop Damage)")
+```
+
+#### We see that the Top 5 Most Economy Damaging Types of Events are:
+
+* TORNADO
+* FLASH FLOOD
+* TSTM WIND
+* HAIL
+* FLOOD

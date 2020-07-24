@@ -1,0 +1,10 @@
+name: Publish Document
+title:
+username:
+account: rpubs
+server: rpubs.com
+hostUrl: rpubs.com
+appId: https://api.rpubs.com/api/v1/document/641663/74cf9d68dcc9409cb5bf5c7412d1fcbd
+bundleId: https://api.rpubs.com/api/v1/document/641663/74cf9d68dcc9409cb5bf5c7412d1fcbd
+url: http://rpubs.com/dannomma/641663
+when: 1595378053.69215
